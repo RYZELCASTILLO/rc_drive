@@ -1,0 +1,105 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block body %}
+
+<div class="dash-page-title">
+    <h2>Welcome back, <span>{{ admin_name }}</span></h2>
+    <p>Manage bookings, verify payments, approve rentals, reply to inquiries, and monitor fleet availability.</p>
+</div>
+
+<div class="dash-stats">
+    <div class="dash-stat-card">
+        <span class="stat-label">Available Cars</span>
+        <div class="stat-value">{{ available_cars }}</div>
+        <span class="stat-sub">Out of {{ total_fleet }} fleet</span>
+    </div>
+    <div class="dash-stat-card blue">
+        <span class="stat-label">Cars Rented</span>
+        <div class="stat-value">{{ total_rented }}</div>
+        <span class="stat-sub">Active + returned</span>
+    </div>
+    <div class="dash-stat-card green">
+        <span class="stat-label">Total Income</span>
+        <div class="stat-value">₱{{ total_income|number_format(0) }}</div>
+        <span class="stat-sub">From approved bookings</span>
+    </div>
+    <div class="dash-stat-card red">
+        <span class="stat-label">Pending Approvals</span>
+        <div class="stat-value">{{ pending_approvals }}</div>
+        <span class="stat-sub">Awaiting action</span>
+    </div>
+</div>
+
+{% if pending_payments > 0 %}
+    <div class="dash-alert dash-alert-info">
+        <i class="fa-solid fa-money-bill-wave"></i>
+        {{ pending_payments }} payment{{ pending_payments == 1 ? '' : 's' }} awaiting verification.
+    </div>
+{% endif %}
+
+{% if cancel_requests > 0 %}
+    <div class="dash-alert dash-alert-error">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        {{ cancel_requests }} cancellation request{{ cancel_requests == 1 ? '' : 's' }} awaiting your decision.
+    </div>
+{% endif %}
+
+<div class="dash-section">
+    <div class="dash-section-title">
+        <h3><i class="fa-solid fa-warehouse"></i> Vehicle Availability by Brand</h3>
+        <span class="title-note">Live stock</span>
+    </div>
+
+    <div class="brand-grid">
+        {% for brand in brand_stats %}
+            <div class="brand-card">
+                <div class="brand-name">{{ brand.name }}</div>
+                <span class="brand-sub">Brand: {{ brand.brand }} &middot; ₱{{ brand.price|number_format(0) }}/day</span>
+
+                <div class="brand-row"><span>Total Units</span><span>{{ brand.total_units }}</span></div>
+                <div class="brand-row"><span>Available</span><span class="available">{{ brand.available }}</span></div>
+                <div class="brand-row"><span>Booked</span><span class="rented">{{ brand.booked }}</span></div>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="dash-section">
+    <div class="dash-section-title">
+        <h3><i class="fa-solid fa-car-side"></i> Recent Bookings</h3>
+        <span class="title-note">Latest 5 of {{ bookings|length }}</span>
+    </div>
+
+    <div class="dash-table-wrap">
+        <table class="dash-table">
+            <thead>
+                <tr>
+                    <th>Customer</th>
+                    <th>Vehicle</th>
+                    <th>Pickup</th>
+                    <th>Return</th>
+                    <th>Total</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for booking in bookings|slice(0, 5) %}
+                    <tr>
+                        <td class="dash-vehicle-name">{{ booking.customer }}</td>
+                        <td>{{ booking.vehicle }}</td>
+                        <td>{{ booking.pickup }}</td>
+                        <td>{{ booking.return }}</td>
+                        <td class="dash-money">₱{{ booking.total|number_format(2) }}</td>
+                        <td><span class="dash-badge {{ booking.badge }}">{{ booking.status }}</span></td>
+                    </tr>
+                {% else %}
+                    <tr class="empty-row"><td colspan="6">No rental bookings registered yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}

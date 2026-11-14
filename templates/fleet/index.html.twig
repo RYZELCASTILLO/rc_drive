@@ -1,0 +1,67 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Fleet{% endblock %}
+
+{% block body %}
+
+<div class="dash-page-title">
+    <h2>Fleet <span>Management</span></h2>
+    <p>See how many units of each vehicle are free, and switch a vehicle off for new bookings.</p>
+</div>
+
+<div class="dash-alert dash-alert-info">
+    <i class="fa-solid fa-circle-info"></i>
+    Demo mode: the buttons show a message, but nothing is saved until the database is connected.
+</div>
+
+<div class="dash-stats">
+    <div class="dash-stat-card">
+        <span class="stat-label">Total Units</span>
+        <div class="stat-value">{{ total_units }}</div>
+        <span class="stat-sub">Whole fleet</span>
+    </div>
+    <div class="dash-stat-card green">
+        <span class="stat-label">Available</span>
+        <div class="stat-value">{{ total_available }}</div>
+        <span class="stat-sub">Ready to rent</span>
+    </div>
+    <div class="dash-stat-card blue">
+        <span class="stat-label">Booked</span>
+        <div class="stat-value">{{ total_booked }}</div>
+        <span class="stat-sub">Currently reserved</span>
+    </div>
+</div>
+
+<div class="fleet-grid">
+    {% for v in vehicles %}
+        <div class="fleet-card">
+            <img class="fleet-img" src="{{ asset('images/' ~ v.image) }}" alt="{{ v.name }}">
+            <div class="fleet-body">
+                <div class="fleet-top">
+                    <div class="brand-name">{{ v.name }}</div>
+                    <span class="dash-badge {{ v.status_class }}">{{ v.status_label }}</span>
+                </div>
+                <span class="brand-sub">Brand: {{ v.brand }}</span>
+                <div class="fleet-price">₱{{ v.price_per_day|number_format(0) }} / day</div>
+
+                <div class="brand-row"><span>Total Units</span><span>{{ v.total_units }}</span></div>
+                <div class="brand-row"><span>Available</span><span class="available">{{ v.available }}</span></div>
+                <div class="brand-row"><span>Booked</span><span class="rented">{{ v.booked }}</span></div>
+
+                <div class="stock-bar"><span style="width: {{ v.percent }}%"></span></div>
+
+                {% if v.availability == 'Available' %}
+                    <form method="post" action="{{ path('app_fleet_action', {id: v.id, action: 'disable'}) }}">
+                        <button type="submit" class="dash-btn dash-btn-danger dash-btn-sm">Mark Unavailable</button>
+                    </form>
+                {% else %}
+                    <form method="post" action="{{ path('app_fleet_action', {id: v.id, action: 'enable'}) }}">
+                        <button type="submit" class="dash-btn dash-btn-green dash-btn-sm">Mark Available</button>
+                    </form>
+                {% endif %}
+            </div>
+        </div>
+    {% endfor %}
+</div>
+
+{% endblock %}

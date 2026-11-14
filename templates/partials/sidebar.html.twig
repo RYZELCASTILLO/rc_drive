@@ -1,0 +1,26 @@
+{% set current_route = app.request.attributes.get('_route') %}
+
+<aside class="sidebar">
+    <div class="sidebar-logo">
+        <img src="{{ asset('images/logo.png') }}" alt="RC Drive Logo">
+    </div>
+
+    <nav class="sidebar-nav">
+        <span class="sidebar-label">Main</span>
+        <a href="{{ path('app_dashboard') }}" class="{{ current_route == 'app_dashboard' ? 'active' : '' }}">
+            <i class="fa-solid fa-gauge-high"></i> <span class="link-text">Dashboard</span>
+        </a>
+
+        <span class="sidebar-label">Manage</span>
+                <a href="{{ path('app_bookings') }}" class="{{ current_route == 'app_bookings' ? 'active' : '' }}">
+            <i class="fa-solid fa-car-side"></i> <span class="link-text">Bookings</span>
+        </a>
+        <a href="#"><i class="fa-solid fa-money-bill-wave"></i> <span class="link-text">Payments</span></a>
+        <a href="#"><i class="fa-solid fa-warehouse"></i> <span class="link-text">Fleet</span></a>
+        <a href="#"><i class="fa-solid fa-comments"></i> <span class="link-text">Conversations</span></a>
+    </nav>
+
+    <div class="sidebar-bottom">
+        <i class="fa-solid fa-location-dot"></i> <span class="link-text">Rizal Blvd, Dumaguete City</span>
+    </div>
+</aside>
