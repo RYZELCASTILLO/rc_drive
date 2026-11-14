@@ -2,6 +2,9 @@
 
 namespace App\Controller;
 
+use App\Entity\Booking;
+use App\Entity\Vehicle;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -9,28 +12,36 @@ use Symfony\Component\Routing\Attribute\Route;
 final class DashboardController extends AbstractController
 {
     #[Route('/', name: 'app_dashboard')]
-    public function index(): Response
+    public function index(EntityManagerInterface $em): Response
     {
-        // ---------- SAMPLE DATA (later: replace with database queries) ----------
-        $vehicles = [
-            ['name' => 'Executive Sedan', 'brand' => 'Sedan',  'price_per_day' => 2500, 'total_units' => 20],
-            ['name' => 'Family SUV',      'brand' => 'SUV',    'price_per_day' => 3800, 'total_units' => 20],
-            ['name' => 'Luxury Sports',   'brand' => 'Sports', 'price_per_day' => 6500, 'total_units' => 2],
-        ];
+        // ---------- DATA FROM THE DATABASE ----------
+        $vehicles = [];
+        foreach ($em->getRepository(Vehicle::class)->findAll() as $vehicle) {
+            $vehicles[] = [
+                'name'          => $vehicle->getName(),
+                'brand'         => $vehicle->getBrand(),
+                'price_per_day' => (float) $vehicle->getPricePerDay(),
+                'total_units'   => $vehicle->getTotalUnits(),
+            ];
+        }
 
-        $bookings = [
-            ['id' => 1, 'customer' => 'Maria Santos',     'vehicle' => 'Executive Sedan', 'pickup' => '2026-10-09', 'return' => '2026-10-12', 'total' => 7500,  'status' => 'Approved',         'payment_status' => 'Paid'],
-            ['id' => 2, 'customer' => 'Juan Dela Cruz',   'vehicle' => 'Family SUV',      'pickup' => '2026-10-10', 'return' => '2026-10-14', 'total' => 15200, 'status' => 'Pending',          'payment_status' => 'Unpaid'],
-            ['id' => 3, 'customer' => 'Ana Reyes',        'vehicle' => 'Luxury Sports',   'pickup' => '2026-10-08', 'return' => '2026-10-10', 'total' => 13000, 'status' => 'Picked Up',        'payment_status' => 'Partial'],
-            ['id' => 4, 'customer' => 'Carlo Mendoza',    'vehicle' => 'Executive Sedan', 'pickup' => '2026-10-07', 'return' => '2026-10-09', 'total' => 5000,  'status' => 'Cancel Requested', 'payment_status' => 'Unpaid'],
-            ['id' => 5, 'customer' => 'Liza Fernandez',   'vehicle' => 'Family SUV',      'pickup' => '2026-10-12', 'return' => '2026-10-15', 'total' => 11400, 'status' => 'Approved',         'payment_status' => 'Pending Verification'],
-            ['id' => 6, 'customer' => 'Mark Villanueva',  'vehicle' => 'Executive Sedan', 'pickup' => '2026-10-01', 'return' => '2026-10-04', 'total' => 7500,  'status' => 'Returned',         'payment_status' => 'Paid'],
-            ['id' => 7, 'customer' => 'Rhea Gonzales',    'vehicle' => 'Family SUV',      'pickup' => '2026-10-02', 'return' => '2026-10-05', 'total' => 11400, 'status' => 'Rejected',         'payment_status' => 'Unpaid'],
-        ];
+        $bookings = [];
+        foreach ($em->getRepository(Booking::class)->findBy([], ['id' => 'DESC']) as $booking) {
+            $bookings[] = [
+                'id'             => $booking->getId(),
+                'customer'       => $booking->getCustomerName(),
+                'vehicle'        => $booking->getVehicle()->getName(),
+                'pickup'         => $booking->getPickupDate()->format('Y-m-d'),
+                'return'         => $booking->getReturnDate()->format('Y-m-d'),
+                'total'          => (float) $booking->getTotalFee(),
+                'status'         => $booking->getStatus(),
+                'payment_status' => $booking->getPaymentStatus(),
+            ];
+        }
 
-        // ---------- CALCULATIONS (same rules as your old dashboard.php) ----------
-        $activeStatuses = ['Approved', 'Picked Up', 'Cancel Requested']; // these use up a car
-        $rentedStatuses = ['Approved', 'Picked Up', 'Returned'];         // these count as rented + income
+        // ---------- CALCULATIONS (same rules as before) ----------
+        $activeStatuses = ['Approved', 'Picked Up', 'Cancel Requested'];
+        $rentedStatuses = ['Approved', 'Picked Up', 'Returned'];
 
         $brandStats    = [];
         $totalFleet    = 0;
