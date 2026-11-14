@@ -1,12 +1,12 @@
 <header class="topbar">
-    <div class="topbar-title">Admin Panel</div>
+    <div class="topbar-title">{{ is_granted('ROLE_ADMIN') ? 'Admin Panel' : 'Staff Panel' }}</div>
 
     <div class="topbar-actions">
-        <span class="dash-role-badge">ADMINISTRATOR</span>
-        <a href="{{ app.request.uri }}" class="dash-btn dash-btn-outline">
-            <i class="fa-solid fa-rotate"></i> Refresh
-        </a>
-        <a href="#" class="dash-btn dash-btn-danger">
+        <span class="dash-role-badge {{ is_granted('ROLE_ADMIN') ? '' : 'staff' }}">
+            {{ is_granted('ROLE_ADMIN') ? 'ADMINISTRATOR' : 'STAFF' }}
+        </span>
+        <span class="topbar-user">{{ app.user.name }}</span>
+        <a href="{{ path('app_logout') }}" class="dash-btn dash-btn-danger">
             <i class="fa-solid fa-right-from-bracket"></i> Logout
         </a>
     </div>

@@ -7,7 +7,10 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
+#[Route('/admin')]
+#[IsGranted('ROLE_ADMIN')]
 final class PaymentsController extends AbstractController
 {
     #[Route('/payments', name: 'app_payments', methods: ['GET'])]

@@ -164,6 +164,22 @@
         .chat-closed { padding: 18px 22px; border-top: 1px solid #222730; color: #8a8f9d; font-size: 0.85rem; }
         @media (max-width: 900px) { .chat-layout { grid-template-columns: 1fr; } }
         
+                /* ===== LOGIN + FORMS + ROLES ===== */
+        .auth-main { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; }
+        .auth-main .admin-content { width: 100%; max-width: 440px; flex: none; padding: 0; }
+        .auth-card { background: #161a20; border: 1px solid #222730; border-top: 4px solid #FCC113; border-radius: 4px; padding: 36px; }
+        .auth-card img { height: 50px; width: auto; margin-bottom: 20px; }
+        .auth-card h2 { font-size: 1.4rem; margin-bottom: 6px; }
+        .auth-card p { color: #8a8f9d; font-size: 0.85rem; margin-bottom: 24px; }
+        .form-group { margin-bottom: 18px; }
+        .form-group label { display: block; font-size: 0.75rem; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: #8a8f9d; margin-bottom: 8px; font-family: 'Montserrat', sans-serif; }
+        .form-input { width: 100%; padding: 12px 14px; background: #0b0c0e; border: 1px solid #2a2f38; border-radius: 4px; color: #ffffff; font-size: 0.9rem; }
+        .form-input:focus { outline: none; border-color: #FCC113; }
+        .form-error { color: #ff5560; font-size: 0.8rem; margin-top: 6px; }
+        .dash-btn-block { width: 100%; justify-content: center; padding: 12px 18px; }
+        .dash-role-badge.staff { background: #0dcaf0; color: #0b0c0e; }
+        .topbar-user { font-size: 0.85rem; color: #d4d8dd; font-weight: 700; }
+
         /* ===== SMALL SCREENS: sidebar shrinks to icons ===== */
         @media (max-width: 900px) {
             .sidebar { width: 72px; padding: 20px 8px; }
@@ -181,13 +197,17 @@
 <body>
 
 <div class="admin-layout">
-    {% include 'partials/sidebar.html.twig' %}
+    {% if app.user %}
+        {% include 'partials/sidebar.html.twig' %}
+    {% endif %}
 
-    <div class="admin-main">
-        {% include 'partials/topbar.html.twig' %}
+    <div class="{{ app.user ? 'admin-main' : 'auth-main' }}">
+        {% if app.user %}
+            {% include 'partials/topbar.html.twig' %}
+        {% endif %}
 
         <main class="admin-content">
-                    {% for type, messages in app.flashes %}
+            {% for type, messages in app.flashes %}
                 {% for message in messages %}
                     <div class="dash-alert dash-alert-{{ type }}">
                         <i class="fa-solid fa-circle-check"></i> {{ message }}
@@ -198,7 +218,9 @@
             {% block body %}{% endblock %}
         </main>
 
-        {% include 'partials/footer.html.twig' %}
+        {% if app.user %}
+            {% include 'partials/footer.html.twig' %}
+        {% endif %}
     </div>
 </div>
 

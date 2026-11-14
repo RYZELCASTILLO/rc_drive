@@ -1,0 +1,12 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Access Denied{% endblock %}
+
+{% block body %}
+<div class="dash-section" style="text-align:center;">
+    <h2 style="font-size:3rem; color:#dc3545;">403</h2>
+    <h3>Access Denied</h3>
+    <p class="title-note" style="margin:12px 0 24px;">You don't have permission to open this page.</p>
+    <a href="{{ path('app_home') }}" class="dash-btn dash-btn-yellow">Go back</a>
+</div>
+{% endblock %}
