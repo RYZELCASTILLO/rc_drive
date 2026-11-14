@@ -12,12 +12,18 @@
         </a>
 
         <span class="sidebar-label">Manage</span>
-                <a href="{{ path('app_bookings') }}" class="{{ current_route == 'app_bookings' ? 'active' : '' }}">
+        <a href="{{ path('app_bookings') }}" class="{{ current_route == 'app_bookings' ? 'active' : '' }}">
             <i class="fa-solid fa-car-side"></i> <span class="link-text">Bookings</span>
         </a>
-        <a href="#"><i class="fa-solid fa-money-bill-wave"></i> <span class="link-text">Payments</span></a>
-        <a href="#"><i class="fa-solid fa-warehouse"></i> <span class="link-text">Fleet</span></a>
-        <a href="#"><i class="fa-solid fa-comments"></i> <span class="link-text">Conversations</span></a>
+        <a href="{{ path('app_payments') }}" class="{{ current_route == 'app_payments' ? 'active' : '' }}">
+            <i class="fa-solid fa-money-bill-wave"></i> <span class="link-text">Payments</span>
+        </a>
+        <a href="{{ path('app_fleet') }}" class="{{ current_route == 'app_fleet' ? 'active' : '' }}">
+            <i class="fa-solid fa-warehouse"></i> <span class="link-text">Fleet</span>
+        </a>
+        <a href="{{ path('app_conversations') }}" class="{{ current_route == 'app_conversations' ? 'active' : '' }}">
+            <i class="fa-solid fa-comments"></i> <span class="link-text">Conversations</span>
+        </a>
     </nav>
 
     <div class="sidebar-bottom">
