@@ -1,20 +1,71 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Hello ConversationsController!{% endblock %}
+{% block title %}Conversations{% endblock %}
 
 {% block body %}
-<style>
-    .example-wrapper { margin: 1em auto; max-width: 800px; width: 95%; font: 18px/1.5 sans-serif; }
-    .example-wrapper code { background: #F5F5F5; padding: 2px 6px; }
-</style>
 
-<div class="example-wrapper">
-    <h1>Hello {{ controller_name }}! ✅</h1>
-
-    This friendly message is coming from:
-    <ul>
-        <li>Your controller at <code>C:/webdev/final-project/rc_drive/src/Controller/ConversationsController.php</code></li>
-        <li>Your template at <code>C:/webdev/final-project/rc_drive/templates/conversations/index.html.twig</code></li>
-    </ul>
+<div class="dash-page-title">
+    <h2>Client <span>Conversations</span></h2>
+    <p>Read customer inquiries and reply to them. {{ total_unread }} unread message{{ total_unread == 1 ? '' : 's' }}.</p>
 </div>
+
+<div class="dash-alert dash-alert-info">
+    <i class="fa-solid fa-circle-info"></i>
+    Demo mode: replies show a message, but they are not stored until the database is connected.
+</div>
+
+<div class="chat-layout">
+
+    <div class="chat-list">
+        {% for i in inquiries %}
+            <a href="{{ path('app_conversations', {id: i.id}) }}" class="chat-item {{ i.id == selected.id ? 'active' : '' }}">
+                <div class="chat-item-top">
+                    <span class="chat-name">{{ i.customer }}</span>
+                    {% if i.unread > 0 and i.id != selected.id %}
+                        <span class="chat-unread">{{ i.unread }}</span>
+                    {% endif %}
+                </div>
+                <div class="chat-subject">{{ i.subject }}</div>
+                <span class="dash-badge {{ i.status == 'Open' ? 'dash-badge-pending' : 'dash-badge-cancelled' }}">{{ i.status }}</span>
+            </a>
+        {% endfor %}
+    </div>
+
+    <div class="chat-thread">
+        <div class="chat-head">
+            <div>
+                <div class="chat-name">{{ selected.customer }}</div>
+                <div class="chat-subject">{{ selected.subject }}</div>
+            </div>
+
+            {% if selected.status == 'Open' %}
+                <form method="post" action="{{ path('app_conversations_action', {id: selected.id, action: 'close'}) }}">
+                    <button type="submit" class="dash-btn dash-btn-danger dash-btn-sm">Close Inquiry</button>
+                </form>
+            {% else %}
+                <span class="dash-badge dash-badge-cancelled">Closed</span>
+            {% endif %}
+        </div>
+
+        <div class="chat-messages">
+            {% for m in selected.messages %}
+                <div class="bubble bubble-{{ m.from }}">
+                    {{ m.text }}
+                    <small>{{ m.from == 'admin' ? 'You' : selected.customer }} &middot; {{ m.time }}</small>
+                </div>
+            {% endfor %}
+        </div>
+
+        {% if selected.status == 'Open' %}
+            <form method="post" class="chat-reply" action="{{ path('app_conversations_action', {id: selected.id, action: 'reply'}) }}">
+                <textarea name="message" placeholder="Type your reply..." required></textarea>
+                <button type="submit" class="dash-btn dash-btn-yellow"><i class="fa-solid fa-paper-plane"></i> Send</button>
+            </form>
+        {% else %}
+            <div class="chat-closed">This inquiry is closed.</div>
+        {% endif %}
+    </div>
+
+</div>
+
 {% endblock %}
