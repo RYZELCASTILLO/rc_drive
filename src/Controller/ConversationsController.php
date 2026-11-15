@@ -2,35 +2,77 @@
 
 namespace App\Controller;
 
+use App\Entity\Inquiry;
+use App\Entity\InquiryMessage;
+use App\Repository\InquiryRepository;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 #[Route('/admin')]
 #[IsGranted('ROLE_ADMIN')]
 final class ConversationsController extends AbstractController
 {
     #[Route('/conversations', name: 'app_conversations', methods: ['GET'])]
-    public function index(Request $request): Response
+    public function index(Request $request, InquiryRepository $repository, EntityManagerInterface $em): Response
     {
-        $inquiries  = $this->sampleInquiries();
-        $selectedId = $request->query->getInt('id', $inquiries[0]['id']);
+        $inquiries  = $repository->findInbox();
+        $selectedId = $request->query->getInt('id');
 
-        $selected = $inquiries[0];
+        $selected = null;
         foreach ($inquiries as $inquiry) {
-            if ($inquiry['id'] === $selectedId) {
+            if ($inquiry->getId() === $selectedId) {
                 $selected = $inquiry;
-                break;
             }
+        }
+        $selected ??= $inquiries[0] ?? null;
+
+        // Opening a conversation marks the customer's messages as read
+        if ($selected) {
+            $selected->markAsRead();
+            $em->flush();
+        }
+
+        $list = [];
+        foreach ($inquiries as $inquiry) {
+            $list[] = [
+                'id'       => $inquiry->getId(),
+                'customer' => $inquiry->getCustomerName(),
+                'subject'  => $inquiry->getSubject(),
+                'status'   => $inquiry->getStatus(),
+                'unread'   => $inquiry->getUnreadCount(),
+            ];
+        }
+
+        $thread = null;
+        if ($selected) {
+            $messages = [];
+            foreach ($selected->getMessages() as $message) {
+                $messages[] = [
+                    'from' => $message->getSender(),
+                    'text' => $message->getBody(),
+                    'time' => $message->getCreatedAt()->format('M j, g:i A'),
+                ];
+            }
+
+            $thread = [
+                'id'       => $selected->getId(),
+                'customer' => $selected->getCustomerName(),
+                'subject'  => $selected->getSubject(),
+                'status'   => $selected->getStatus(),
+                'messages' => $messages,
+            ];
         }
 
         return $this->render('conversations/index.html.twig', [
-            'inquiries'    => $inquiries,
-            'selected'     => $selected,
-            'total_unread' => array_sum(array_column($inquiries, 'unread')),
+            'inquiries'    => $list,
+            'selected'     => $thread,
+            'total_unread' => array_sum(array_column($list, 'unread')),
         ]);
     }
 
@@ -40,59 +82,54 @@ final class ConversationsController extends AbstractController
         requirements: ['id' => '\d+', 'action' => 'reply|close'],
         methods: ['POST']
     )]
-    public function action(int $id, string $action, Request $request): RedirectResponse
-    {
+    public function action(
+        Inquiry $inquiry,
+        string $action,
+        Request $request,
+        EntityManagerInterface $em,
+        ValidatorInterface $validator,
+    ): RedirectResponse {
+        $id = $inquiry->getId();
+
         if (!$this->isCsrfTokenValid('conversation_' . $id, $request->request->getString('_token'))) {
             $this->addFlash('error', 'Invalid security token. Please try again.');
 
             return $this->redirectToRoute('app_conversations', ['id' => $id]);
         }
-        // Later: save the reply / close the inquiry in the database here.
-        if ($action === 'reply') {
-            $message = trim($request->request->getString('message'));
 
-            if ($message === '') {
-                $this->addFlash('error', 'Please type a message before sending.');
-            } else {
-                $this->addFlash('success', 'Reply sent to the customer.');
-            }
-        } else {
+        if ($action === 'close') {
+            $inquiry->setStatus(Inquiry::STATUS_CLOSED);
+            $em->flush();
+
             $this->addFlash('info', "Inquiry #$id closed.");
+
+            return $this->redirectToRoute('app_conversations', ['id' => $id]);
         }
 
-        return $this->redirectToRoute('app_conversations', ['id' => $id]);
-    }
+        if ($inquiry->getStatus() === Inquiry::STATUS_CLOSED) {
+            $this->addFlash('error', 'This inquiry is closed. You cannot reply to it.');
 
-    private function sampleInquiries(): array
-    {
-        return [
-            [
-                'id' => 1, 'customer' => 'Maria Santos', 'subject' => 'Airport pickup for Executive Sedan', 'status' => 'Open', 'unread' => 0,
-                'messages' => [
-                    ['from' => 'customer', 'text' => 'Hi! Can I pick up the Executive Sedan at the airport on Oct 9?', 'time' => 'Oct 8, 9:15 AM'],
-                    ['from' => 'admin',    'text' => 'Hello Maria! Yes, we can arrange that. Please send us your flight time.', 'time' => 'Oct 8, 9:40 AM'],
-                    ['from' => 'customer', 'text' => 'My flight lands at 2:30 PM. Thank you!', 'time' => 'Oct 8, 10:02 AM'],
-                ],
-            ],
-            [
-                'id' => 2, 'customer' => 'Juan Dela Cruz', 'subject' => 'Can the Family SUV fit 5 adults?', 'status' => 'Open', 'unread' => 1,
-                'messages' => [
-                    ['from' => 'customer', 'text' => 'Can the Family SUV fit 5 adults with luggage for a 4-day trip?', 'time' => 'Oct 10, 8:20 AM'],
-                ],
-            ],
-            [
-                'id' => 3, 'customer' => 'Ana Reyes', 'subject' => 'Documents for Luxury Sports', 'status' => 'Closed', 'unread' => 0,
-                'messages' => [
-                    ['from' => 'customer', 'text' => 'What documents do I need to rent the Luxury Sports?', 'time' => 'Oct 6, 3:10 PM'],
-                    ['from' => 'admin',    'text' => 'A valid driver\'s license and one government ID, Ana.', 'time' => 'Oct 6, 3:25 PM'],
-                ],
-            ],
-            [
-                'id' => 4, 'customer' => 'Liza Fernandez', 'subject' => 'Payment reference sent', 'status' => 'Open', 'unread' => 1,
-                'messages' => [
-                    ['from' => 'customer', 'text' => 'I sent my payment reference this morning. Can you confirm it?', 'time' => 'Oct 11, 7:45 AM'],
-                ],
-            ],
-        ];
+            return $this->redirectToRoute('app_conversations', ['id' => $id]);
+        }
+
+        $message = (new InquiryMessage())
+            ->setSender(InquiryMessage::FROM_ADMIN)
+            ->setBody($request->request->getString('message'))
+            ->setIsRead(true);
+
+        $errors = $validator->validate($message);
+        if (count($errors) > 0) {
+            $this->addFlash('error', $errors->get(0)->getMessage());
+
+            return $this->redirectToRoute('app_conversations', ['id' => $id]);
+        }
+
+        $inquiry->addMessage($message);
+        $em->persist($message);
+        $em->flush();
+
+        $this->addFlash('success', 'Reply sent to the customer.');
+
+        return $this->redirectToRoute('app_conversations', ['id' => $id]);
     }
 }

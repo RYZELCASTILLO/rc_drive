@@ -9,65 +9,67 @@
     <p>Read customer inquiries and reply to them. {{ total_unread }} unread message{{ total_unread == 1 ? '' : 's' }}.</p>
 </div>
 
-<div class="dash-alert dash-alert-info">
-    <i class="fa-solid fa-circle-info"></i>
-    Demo mode: replies show a message, but they are not stored until the database is connected.
-</div>
-
-<div class="chat-layout">
-
-    <div class="chat-list">
-        {% for i in inquiries %}
-            <a href="{{ path('app_conversations', {id: i.id}) }}" class="chat-item {{ i.id == selected.id ? 'active' : '' }}">
-                <div class="chat-item-top">
-                    <span class="chat-name">{{ i.customer }}</span>
-                    {% if i.unread > 0 and i.id != selected.id %}
-                        <span class="chat-unread">{{ i.unread }}</span>
-                    {% endif %}
-                </div>
-                <div class="chat-subject">{{ i.subject }}</div>
-                <span class="dash-badge {{ i.status == 'Open' ? 'dash-badge-pending' : 'dash-badge-cancelled' }}">{{ i.status }}</span>
-            </a>
-        {% endfor %}
+{% if selected is null %}
+    <div class="dash-section">
+        <p class="title-note">No inquiries yet.</p>
     </div>
+{% else %}
+    <div class="chat-layout">
 
-    <div class="chat-thread">
-        <div class="chat-head">
-            <div>
-                <div class="chat-name">{{ selected.customer }}</div>
-                <div class="chat-subject">{{ selected.subject }}</div>
-            </div>
-
-            {% if selected.status == 'Open' %}
-                <form method="post" action="{{ path('app_conversations_action', {id: selected.id, action: 'close'}) }}">
-                    <button type="submit" class="dash-btn dash-btn-danger dash-btn-sm">Close Inquiry</button>
-                <input type="hidden" name="_token" value="{{ csrf_token('conversation_' ~ selected.id) }}">
-                </form>
-            {% else %}
-                <span class="dash-badge dash-badge-cancelled">Closed</span>
-            {% endif %}
-        </div>
-
-        <div class="chat-messages">
-            {% for m in selected.messages %}
-                <div class="bubble bubble-{{ m.from }}">
-                    {{ m.text }}
-                    <small>{{ m.from == 'admin' ? 'You' : selected.customer }} &middot; {{ m.time }}</small>
-                </div>
+        <div class="chat-list">
+            {% for i in inquiries %}
+                <a href="{{ path('app_conversations', {id: i.id}) }}" class="chat-item {{ i.id == selected.id ? 'active' : '' }}">
+                    <div class="chat-item-top">
+                        <span class="chat-name">{{ i.customer }}</span>
+                        {% if i.unread > 0 %}
+                            <span class="chat-unread">{{ i.unread }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="chat-subject">{{ i.subject }}</div>
+                    <span class="dash-badge {{ i.status == 'Open' ? 'dash-badge-pending' : 'dash-badge-cancelled' }}">{{ i.status }}</span>
+                </a>
             {% endfor %}
         </div>
 
-        {% if selected.status == 'Open' %}
-            <form method="post" class="chat-reply" action="{{ path('app_conversations_action', {id: selected.id, action: 'reply'}) }}">
-                <textarea name="message" placeholder="Type your reply..." required></textarea>
-                <button type="submit" class="dash-btn dash-btn-yellow"><i class="fa-solid fa-paper-plane"></i> Send</button>
-            <input type="hidden" name="_token" value="{{ csrf_token('conversation_' ~ selected.id) }}">
-            </form>
-        {% else %}
-            <div class="chat-closed">This inquiry is closed.</div>
-        {% endif %}
-    </div>
+        <div class="chat-thread">
+            <div class="chat-head">
+                <div>
+                    <div class="chat-name">{{ selected.customer }}</div>
+                    <div class="chat-subject">{{ selected.subject }}</div>
+                </div>
 
-</div>
+                {% if selected.status == 'Open' %}
+                    <form method="post" action="{{ path('app_conversations_action', {id: selected.id, action: 'close'}) }}"
+                          onsubmit="return confirm('Close this inquiry? You will not be able to reply anymore.');">
+                        <input type="hidden" name="_token" value="{{ csrf_token('conversation_' ~ selected.id) }}">
+                        <button type="submit" class="dash-btn dash-btn-danger dash-btn-sm">Close Inquiry</button>
+                    </form>
+                {% else %}
+                    <span class="dash-badge dash-badge-cancelled">Closed</span>
+                {% endif %}
+            </div>
+
+            <div class="chat-messages">
+                {% for m in selected.messages %}
+                    <div class="bubble bubble-{{ m.from }}">
+                        {{ m.text|nl2br }}
+                        <small>{{ m.from == 'admin' ? 'You' : selected.customer }} &middot; {{ m.time }}</small>
+                    </div>
+                {% endfor %}
+            </div>
+
+            {% if selected.status == 'Open' %}
+                <form method="post" class="chat-reply" action="{{ path('app_conversations_action', {id: selected.id, action: 'reply'}) }}">
+                    <input type="hidden" name="_token" value="{{ csrf_token('conversation_' ~ selected.id) }}">
+                    <textarea name="message" placeholder="Type your reply..." maxlength="2000" required></textarea>
+                    <button type="submit" class="dash-btn dash-btn-yellow"><i class="fa-solid fa-paper-plane"></i> Send</button>
+                </form>
+            {% else %}
+                <div class="chat-closed">This inquiry is closed.</div>
+            {% endif %}
+        </div>
+
+    </div>
+{% endif %}
 
 {% endblock %}
