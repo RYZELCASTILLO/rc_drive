@@ -2,6 +2,9 @@
 
 namespace App\Controller;
 
+use App\Entity\Booking;
+use App\Repository\BookingRepository;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -14,9 +17,8 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 final class PaymentsController extends AbstractController
 {
     #[Route('/payments', name: 'app_payments', methods: ['GET'])]
-    public function index(Request $request): Response
+    public function index(Request $request, BookingRepository $repository): Response
     {
-        $all      = $this->samplePayments();
         $statuses = ['Pending Verification', 'Paid', 'Partial', 'Unpaid'];
 
         $filter = $request->query->getString('status', 'All');
@@ -24,29 +26,41 @@ final class PaymentsController extends AbstractController
             $filter = 'All';
         }
 
+        $all            = $repository->search(null, null);
         $counts         = array_fill_keys($statuses, 0);
-        $verifiedTotal  = 0;
-        $awaitingAmount = 0;
+        $verifiedTotal  = 0.0;
+        $awaitingAmount = 0.0;
+        $payments       = [];
 
-        foreach ($all as $payment) {
-            $counts[$payment['status']]++;
+        foreach ($all as $booking) {
+            $status = $booking->getPaymentStatus();
+            $paid   = (float) $booking->getAmountPaid();
+            $total  = (float) $booking->getTotalFee();
 
-            if (in_array($payment['status'], ['Paid', 'Partial'], true)) {
-                $verifiedTotal += $payment['paid'];
+            if (isset($counts[$status])) {
+                $counts[$status]++;
             }
-            if ($payment['status'] === 'Pending Verification') {
-                $awaitingAmount += $payment['paid'];
+            if (in_array($status, ['Paid', 'Partial'], true)) {
+                $verifiedTotal += $paid;
             }
-        }
+            if ($status === 'Pending Verification') {
+                $awaitingAmount += $paid;
+            }
 
-        $payments = array_values(array_filter(
-            $all,
-            fn (array $p) => $filter === 'All' || $p['status'] === $filter
-        ));
-
-        foreach ($payments as $key => $payment) {
-            $payments[$key]['balance'] = $payment['total'] - $payment['paid'];
-            $payments[$key]['badge']   = $this->paymentBadgeClass($payment['status']);
+            if ($filter === 'All' || $filter === $status) {
+                $payments[] = [
+                    'booking_id' => $booking->getId(),
+                    'customer'   => $booking->getCustomerName(),
+                    'vehicle'    => $booking->getVehicle()?->getName() ?? '',
+                    'total'      => $total,
+                    'paid'       => $paid,
+                    'balance'    => $total - $paid,
+                    'type'       => $booking->getPaymentType() ?? '',
+                    'reference'  => $booking->getPaymentReference() ?? '',
+                    'status'     => $status,
+                    'badge'      => $this->paymentBadgeClass($status),
+                ];
+            }
         }
 
         return $this->render('payments/index.html.twig', [
@@ -65,29 +79,39 @@ final class PaymentsController extends AbstractController
         requirements: ['id' => '\d+', 'action' => 'verify|reject'],
         methods: ['POST']
     )]
-    public function action(int $id, string $action): RedirectResponse
+    public function action(Booking $booking, string $action, Request $request, EntityManagerInterface $em): RedirectResponse
     {
-        // Later: update the payment status in the database here.
-        if ($action === 'verify') {
-            $this->addFlash('success', "Payment for booking #$id verified.");
-        } else {
-            $this->addFlash('error', "Payment for booking #$id rejected. The customer will be asked to pay again.");
+        $id = $booking->getId();
+
+        if (!$this->isCsrfTokenValid('payment_booking_' . $id, $request->request->getString('_token'))) {
+            $this->addFlash('error', 'Invalid security token. Please try again.');
+
+            return $this->redirectToRoute('app_payments');
         }
 
-        return $this->redirectToRoute('app_payments');
-    }
+        if ($booking->getPaymentStatus() !== 'Pending Verification') {
+            $this->addFlash('error', "The payment for booking #$id is not waiting for verification.");
 
-    private function samplePayments(): array
-    {
-        return [
-            ['booking_id' => 1, 'customer' => 'Maria Santos',    'vehicle' => 'Executive Sedan', 'total' => 7500,  'paid' => 7500,  'type' => 'Full',    'reference' => 'GC-1009-4821', 'status' => 'Paid'],
-            ['booking_id' => 2, 'customer' => 'Juan Dela Cruz',  'vehicle' => 'Family SUV',      'total' => 15200, 'paid' => 0,     'type' => '',        'reference' => '',             'status' => 'Unpaid'],
-            ['booking_id' => 3, 'customer' => 'Ana Reyes',       'vehicle' => 'Luxury Sports',   'total' => 13000, 'paid' => 6500,  'type' => 'Partial', 'reference' => 'GC-1008-7731', 'status' => 'Partial'],
-            ['booking_id' => 4, 'customer' => 'Carlo Mendoza',   'vehicle' => 'Executive Sedan', 'total' => 5000,  'paid' => 0,     'type' => '',        'reference' => '',             'status' => 'Unpaid'],
-            ['booking_id' => 5, 'customer' => 'Liza Fernandez',  'vehicle' => 'Family SUV',      'total' => 11400, 'paid' => 11400, 'type' => 'Full',    'reference' => 'GC-1012-3390', 'status' => 'Pending Verification'],
-            ['booking_id' => 6, 'customer' => 'Mark Villanueva', 'vehicle' => 'Executive Sedan', 'total' => 7500,  'paid' => 7500,  'type' => 'Full',    'reference' => 'GC-1001-1158', 'status' => 'Paid'],
-            ['booking_id' => 7, 'customer' => 'Rhea Gonzales',   'vehicle' => 'Family SUV',      'total' => 11400, 'paid' => 0,     'type' => '',        'reference' => '',             'status' => 'Unpaid'],
-        ];
+            return $this->redirectToRoute('app_payments');
+        }
+
+        if ($action === 'verify') {
+            $fullyPaid = (float) $booking->getAmountPaid() >= (float) $booking->getTotalFee();
+            $booking->setPaymentStatus($fullyPaid ? 'Paid' : 'Partial');
+
+            $this->addFlash('success', "Payment for booking #$id verified.");
+        } else {
+            $booking->setPaymentStatus('Unpaid');
+            $booking->setAmountPaid('0.00');
+            $booking->setPaymentType(null);
+            $booking->setPaymentReference(null);
+
+            $this->addFlash('error', "Payment for booking #$id rejected. The customer must pay again.");
+        }
+
+        $em->flush();
+
+        return $this->redirectToRoute('app_payments');
     }
 
     private function paymentBadgeClass(string $status): string

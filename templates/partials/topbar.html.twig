@@ -1,5 +1,8 @@
 <header class="topbar">
-    <div class="topbar-title">{{ is_granted('ROLE_ADMIN') ? 'Admin Panel' : 'Staff Panel' }}</div>
+    <div class="topbar-left">
+        <label for="nav-toggle" class="nav-burger" aria-label="Open menu"><i class="fa-solid fa-bars"></i></label>
+        <div class="topbar-title">{{ is_granted('ROLE_ADMIN') ? 'Admin Panel' : 'Staff Panel' }}</div>
+    </div>
 
     <div class="topbar-actions">
         <span class="dash-role-badge {{ is_granted('ROLE_ADMIN') ? '' : 'staff' }}">

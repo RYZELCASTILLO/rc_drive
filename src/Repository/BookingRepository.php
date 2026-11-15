@@ -42,4 +42,21 @@ class BookingRepository extends ServiceEntityRepository
 
         return $qb->getQuery()->getResult();
     }
+    
+    /**
+     * How many bookings currently hold a car, per vehicle: [vehicleId => count].
+     *
+     * @return array<int, int>
+     */
+    public function countActiveByVehicle(): array
+    {
+        $rows = $this->createQueryBuilder('b')
+            ->select('IDENTITY(b.vehicle) AS vehicleId')
+            ->where('b.status IN (:statuses)')
+            ->setParameter('statuses', Booking::ACTIVE_STATUSES)
+            ->getQuery()
+            ->getScalarResult();
+
+        return array_count_values(array_map(static fn (array $row) => (int) $row['vehicleId'], $rows));
+    }
 }

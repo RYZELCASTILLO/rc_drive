@@ -42,6 +42,11 @@ final class ConversationsController extends AbstractController
     )]
     public function action(int $id, string $action, Request $request): RedirectResponse
     {
+        if (!$this->isCsrfTokenValid('conversation_' . $id, $request->request->getString('_token'))) {
+            $this->addFlash('error', 'Invalid security token. Please try again.');
+
+            return $this->redirectToRoute('app_conversations', ['id' => $id]);
+        }
         // Later: save the reply / close the inquiry in the database here.
         if ($action === 'reply') {
             $message = trim($request->request->getString('message'));

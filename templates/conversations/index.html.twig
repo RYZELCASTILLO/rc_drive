@@ -41,6 +41,7 @@
             {% if selected.status == 'Open' %}
                 <form method="post" action="{{ path('app_conversations_action', {id: selected.id, action: 'close'}) }}">
                     <button type="submit" class="dash-btn dash-btn-danger dash-btn-sm">Close Inquiry</button>
+                <input type="hidden" name="_token" value="{{ csrf_token('conversation_' ~ selected.id) }}">
                 </form>
             {% else %}
                 <span class="dash-badge dash-badge-cancelled">Closed</span>
@@ -60,6 +61,7 @@
             <form method="post" class="chat-reply" action="{{ path('app_conversations_action', {id: selected.id, action: 'reply'}) }}">
                 <textarea name="message" placeholder="Type your reply..." required></textarea>
                 <button type="submit" class="dash-btn dash-btn-yellow"><i class="fa-solid fa-paper-plane"></i> Send</button>
+            <input type="hidden" name="_token" value="{{ csrf_token('conversation_' ~ selected.id) }}">
             </form>
         {% else %}
             <div class="chat-closed">This inquiry is closed.</div>

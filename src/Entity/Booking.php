@@ -14,7 +14,8 @@ class Booking
 {
     public const STATUSES = ['Pending', 'Approved', 'Picked Up', 'Cancel Requested', 'Returned', 'Rejected', 'Cancelled'];
     public const PAYMENT_STATUSES = ['Unpaid', 'Pending Verification', 'Partial', 'Paid'];
-
+    public const ACTIVE_STATUSES = ['Approved', 'Picked Up', 'Cancel Requested'];
+    public const RENTED_STATUSES = ['Approved', 'Picked Up', 'Returned'];
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]

@@ -4,8 +4,9 @@ namespace App\Entity;
 
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use App\Repository\VehicleRepository;
 
-#[ORM\Entity]
+#[ORM\Entity(repositoryClass: VehicleRepository::class)]
 #[ORM\Table(name: 'vehicles')]
 class Vehicle
 {

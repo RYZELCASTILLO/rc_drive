@@ -11,7 +11,7 @@
 
 <div class="dash-alert dash-alert-info">
     <i class="fa-solid fa-circle-info"></i>
-    Demo mode: the buttons show a message, but nothing is saved until the database is connected.
+   
 </div>
 
 <div class="dash-stats">
@@ -73,11 +73,14 @@
                             <div class="action-group">
                                 {% if p.status == 'Pending Verification' %}
                                     <form method="post" action="{{ path('app_payments_action', {id: p.booking_id, action: 'verify'}) }}">
-                                        <button type="submit" class="dash-btn dash-btn-green dash-btn-sm">Verify</button>
-                                    </form>
-                                    <form method="post" action="{{ path('app_payments_action', {id: p.booking_id, action: 'reject'}) }}">
-                                        <button type="submit" class="dash-btn dash-btn-danger dash-btn-sm">Reject</button>
-                                    </form>
+                                    <input type="hidden" name="_token" value="{{ csrf_token('payment_booking_' ~ p.booking_id) }}">
+                                    <button type="submit" class="dash-btn dash-btn-green dash-btn-sm">Verify</button>
+                                </form>
+                                <form method="post" action="{{ path('app_payments_action', {id: p.booking_id, action: 'reject'}) }}"
+                                      onsubmit="return confirm('Reject this payment? The customer must pay again.');">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('payment_booking_' ~ p.booking_id) }}">
+                                    <button type="submit" class="dash-btn dash-btn-danger dash-btn-sm">Reject</button>
+                                </form>
                                 {% else %}
                                     <span class="cell-sub">No actions</span>
                                 {% endif %}

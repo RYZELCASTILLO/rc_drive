@@ -2,8 +2,13 @@
 
 namespace App\Controller;
 
+use App\Entity\Vehicle;
+use App\Repository\BookingRepository;
+use App\Repository\VehicleRepository;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\RedirectResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
@@ -13,29 +18,44 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 final class FleetController extends AbstractController
 {
     #[Route('/fleet', name: 'app_fleet', methods: ['GET'])]
-    public function index(): Response
+    public function index(VehicleRepository $vehicleRepository, BookingRepository $bookingRepository): Response
     {
-        $vehicles       = $this->sampleVehicles();
+        $activeByVehicle = $bookingRepository->countActiveByVehicle();
+
+        $rows           = [];
         $totalUnits     = 0;
         $totalAvailable = 0;
         $totalBooked    = 0;
 
-        foreach ($vehicles as $key => $vehicle) {
-            $available = max(0, $vehicle['total_units'] - $vehicle['booked']);
-            [$label, $class] = $this->stockStatus($vehicle['availability'], $available);
+        foreach ($vehicleRepository->findAllOrdered() as $vehicle) {
+            $units     = $vehicle->getTotalUnits();
+            $booked    = $activeByVehicle[$vehicle->getId()] ?? 0;
+            $available = max(0, $units - $booked);
 
-            $vehicles[$key]['available']    = $available;
-            $vehicles[$key]['percent']      = $vehicle['total_units'] > 0 ? (int) round($available / $vehicle['total_units'] * 100) : 0;
-            $vehicles[$key]['status_label'] = $label;
-            $vehicles[$key]['status_class'] = $class;
+            [$label, $class] = $this->stockStatus($vehicle->getAvailability(), $available);
 
-            $totalUnits     += $vehicle['total_units'];
+            $rows[] = [
+                'id'            => $vehicle->getId(),
+                'name'          => $vehicle->getName(),
+                'brand'         => $vehicle->getBrand(),
+                'price_per_day' => (float) $vehicle->getPricePerDay(),
+                'total_units'   => $units,
+                'booked'        => $booked,
+                'available'     => $available,
+                'availability'  => $vehicle->getAvailability(),
+                'image'         => $vehicle->getImage() ?? 'logo.png',
+                'percent'       => $units > 0 ? (int) round($available / $units * 100) : 0,
+                'status_label'  => $label,
+                'status_class'  => $class,
+            ];
+
+            $totalUnits     += $units;
             $totalAvailable += $available;
-            $totalBooked    += $vehicle['booked'];
+            $totalBooked    += $booked;
         }
 
         return $this->render('fleet/index.html.twig', [
-            'vehicles'        => $vehicles,
+            'vehicles'        => $rows,
             'total_units'     => $totalUnits,
             'total_available' => $totalAvailable,
             'total_booked'    => $totalBooked,
@@ -48,32 +68,25 @@ final class FleetController extends AbstractController
         requirements: ['id' => '\d+', 'action' => 'enable|disable'],
         methods: ['POST']
     )]
-    public function action(int $id, string $action): RedirectResponse
+    public function action(Vehicle $vehicle, string $action, Request $request, EntityManagerInterface $em): RedirectResponse
     {
-        $name = "Vehicle #$id";
-        foreach ($this->sampleVehicles() as $vehicle) {
-            if ($vehicle['id'] === $id) {
-                $name = $vehicle['name'];
-            }
+        if (!$this->isCsrfTokenValid('fleet_vehicle_' . $vehicle->getId(), $request->request->getString('_token'))) {
+            $this->addFlash('error', 'Invalid security token. Please try again.');
+
+            return $this->redirectToRoute('app_fleet');
         }
 
-        // Later: update the "availability" column in the database here.
         if ($action === 'disable') {
-            $this->addFlash('error', "$name marked as unavailable for new bookings.");
+            $vehicle->setAvailability('Unavailable');
+            $this->addFlash('error', $vehicle->getName() . ' is now unavailable for new bookings.');
         } else {
-            $this->addFlash('success', "$name is available for booking again.");
+            $vehicle->setAvailability('Available');
+            $this->addFlash('success', $vehicle->getName() . ' is available for booking again.');
         }
+
+        $em->flush();
 
         return $this->redirectToRoute('app_fleet');
-    }
-
-    private function sampleVehicles(): array
-    {
-        return [
-            ['id' => 1, 'name' => 'Executive Sedan', 'brand' => 'Sedan',  'price_per_day' => 2500, 'total_units' => 20, 'booked' => 2, 'availability' => 'Available', 'image' => 'sedan.jpg'],
-            ['id' => 2, 'name' => 'Family SUV',      'brand' => 'SUV',    'price_per_day' => 3800, 'total_units' => 20, 'booked' => 1, 'availability' => 'Available', 'image' => 'suv.jpg'],
-            ['id' => 3, 'name' => 'Luxury Sports',   'brand' => 'Sports', 'price_per_day' => 6500, 'total_units' => 2,  'booked' => 1, 'availability' => 'Available', 'image' => 'sports.jpg'],
-        ];
     }
 
     private function stockStatus(string $availability, int $available): array

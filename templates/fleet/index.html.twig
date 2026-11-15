@@ -11,7 +11,7 @@
 
 <div class="dash-alert dash-alert-info">
     <i class="fa-solid fa-circle-info"></i>
-    Demo mode: the buttons show a message, but nothing is saved until the database is connected.
+    
 </div>
 
 <div class="dash-stats">
@@ -51,11 +51,14 @@
                 <div class="stock-bar"><span style="width: {{ v.percent }}%"></span></div>
 
                 {% if v.availability == 'Available' %}
-                    <form method="post" action="{{ path('app_fleet_action', {id: v.id, action: 'disable'}) }}">
+                    <form method="post" action="{{ path('app_fleet_action', {id: v.id, action: 'disable'}) }}"
+                          onsubmit="return confirm('Mark {{ v.name|e('js') }} as unavailable for new bookings?');">
+                        <input type="hidden" name="_token" value="{{ csrf_token('fleet_vehicle_' ~ v.id) }}">
                         <button type="submit" class="dash-btn dash-btn-danger dash-btn-sm">Mark Unavailable</button>
                     </form>
                 {% else %}
                     <form method="post" action="{{ path('app_fleet_action', {id: v.id, action: 'enable'}) }}">
+                        <input type="hidden" name="_token" value="{{ csrf_token('fleet_vehicle_' ~ v.id) }}">
                         <button type="submit" class="dash-btn dash-btn-green dash-btn-sm">Mark Available</button>
                     </form>
                 {% endif %}
