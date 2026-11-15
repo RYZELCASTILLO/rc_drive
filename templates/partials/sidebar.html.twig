@@ -17,7 +17,7 @@
         {% endif %}
 
         <span class="sidebar-label">Manage</span>
-        <a href="{{ path('app_bookings') }}" class="{{ current_route == 'app_bookings' ? 'active' : '' }}">
+        <a href="{{ path('app_bookings') }}" class="{{ current_route starts with 'app_bookings' ? 'active' : '' }}">
             <i class="fa-solid fa-car-side"></i> <span class="link-text">Bookings</span>
         </a>
 

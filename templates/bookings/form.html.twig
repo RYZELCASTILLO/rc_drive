@@ -1,0 +1,69 @@
+{% extends 'base.html.twig' %}
+
+{% form_theme form 'form_div_layout.html.twig' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block body %}
+
+<div class="dash-page-title">
+    <h2>{{ title }}</h2>
+    <p>The total fee is calculated automatically: number of days x the vehicle's daily rate.</p>
+</div>
+
+<div class="dash-section form-card">
+    {{ form_start(form) }}
+
+        <div class="form-group">
+            {{ form_label(form.vehicle) }}
+            {{ form_widget(form.vehicle) }}
+            {{ form_errors(form.vehicle) }}
+        </div>
+
+        <div class="form-group">
+            {{ form_label(form.customerName) }}
+            {{ form_widget(form.customerName) }}
+            {{ form_errors(form.customerName) }}
+        </div>
+
+        <div class="form-group">
+            {{ form_label(form.phone) }}
+            {{ form_widget(form.phone) }}
+            {{ form_errors(form.phone) }}
+        </div>
+
+        <div class="form-group">
+            {{ form_label(form.pickupDate) }}
+            {{ form_widget(form.pickupDate) }}
+            {{ form_errors(form.pickupDate) }}
+        </div>
+
+        <div class="form-group">
+            {{ form_label(form.returnDate) }}
+            {{ form_widget(form.returnDate) }}
+            {{ form_errors(form.returnDate) }}
+        </div>
+
+        {% if form.status is defined %}
+            <div class="form-group">
+                {{ form_label(form.status) }}
+                {{ form_widget(form.status) }}
+                {{ form_errors(form.status) }}
+            </div>
+
+            <div class="form-group">
+                {{ form_label(form.paymentStatus) }}
+                {{ form_widget(form.paymentStatus) }}
+                {{ form_errors(form.paymentStatus) }}
+            </div>
+        {% endif %}
+
+        <div class="form-actions">
+            <button type="submit" class="dash-btn dash-btn-yellow"><i class="fa-solid fa-floppy-disk"></i> Save</button>
+            <a href="{{ path('app_bookings') }}" class="dash-btn dash-btn-outline">Cancel</a>
+        </div>
+
+    {{ form_end(form) }}
+</div>
+
+{% endblock %}

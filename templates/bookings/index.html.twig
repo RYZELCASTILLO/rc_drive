@@ -4,24 +4,49 @@
 
 {% block body %}
 
+{% set badges = {
+    'Approved': 'dash-badge-approved',
+    'Picked Up': 'dash-badge-pickedup',
+    'Returned': 'dash-badge-returned',
+    'Cancel Requested': 'dash-badge-cancelreq',
+    'Cancelled': 'dash-badge-cancelled',
+    'Rejected': 'dash-badge-rejected',
+    'Pending': 'dash-badge-pending'
+} %}
+
 <div class="dash-page-title">
     <h2>Rental <span>Bookings</span></h2>
-    <p>Approve or reject requests, hand over cars, and process returns and cancellations.</p>
+    <p>
+        {% if is_granted('ROLE_ADMIN') %}
+            You can edit or delete any booking.
+        {% else %}
+            You can see all bookings, but only edit or delete the ones you created.
+        {% endif %}
+    </p>
 </div>
 
-<div class="dash-alert dash-alert-info">
-    <i class="fa-solid fa-circle-info"></i>
-    Demo mode: the buttons show a message, but nothing is saved until the database is connected.
-</div>
-
-<div class="dash-tabs">
-    <a href="{{ path('app_bookings') }}" class="dash-tab {{ filter == 'All' ? 'active' : '' }}">All <span class="count">{{ total }}</span></a>
-    {% for status, count in counts %}
-        <a href="{{ path('app_bookings', {status: status}) }}" class="dash-tab {{ filter == status ? 'active' : '' }}">{{ status }} <span class="count">{{ count }}</span></a>
-    {% endfor %}
-</div>
+<form method="get" action="{{ path('app_bookings') }}" class="filter-bar">
+    <input type="text" name="q" value="{{ term }}" class="form-input" placeholder="Search customer, phone or vehicle...">
+    <select name="status" class="form-input">
+        <option value="">All statuses</option>
+        {% for s in statuses %}
+            <option value="{{ s }}" {{ s == status ? 'selected' : '' }}>{{ s }}</option>
+        {% endfor %}
+    </select>
+    <button type="submit" class="dash-btn dash-btn-yellow"><i class="fa-solid fa-magnifying-glass"></i> Search</button>
+    {% if term or status %}
+        <a href="{{ path('app_bookings') }}" class="dash-btn dash-btn-outline">Clear</a>
+    {% endif %}
+</form>
 
 <div class="dash-section">
+    <div class="dash-section-title">
+        <h3><i class="fa-solid fa-car-side"></i> {{ bookings|length }} booking{{ bookings|length == 1 ? '' : 's' }}</h3>
+        <a href="{{ path('app_bookings_new') }}" class="dash-btn dash-btn-yellow">
+            <i class="fa-solid fa-plus"></i> New Booking
+        </a>
+    </div>
+
     <div class="dash-table-wrap">
         <table class="dash-table">
             <thead>
@@ -31,8 +56,8 @@
                     <th>Vehicle</th>
                     <th>Dates</th>
                     <th>Total</th>
-                    <th>Payment</th>
                     <th>Status</th>
+                    <th>Created by</th>
                     <th>Actions</th>
                 </tr>
             </thead>
@@ -41,51 +66,71 @@
                     <tr>
                         <td>{{ b.id }}</td>
                         <td>
-                            <span class="dash-vehicle-name">{{ b.customer }}</span>
+                            <span class="dash-vehicle-name">{{ b.customerName }}</span>
                             <span class="cell-sub">{{ b.phone }}</span>
-                            {% if b.note %}<span class="cell-sub">{{ b.note }}</span>{% endif %}
                         </td>
-                        <td>{{ b.vehicle }}</td>
-                        <td>{{ b.pickup }}<span class="cell-sub">to {{ b.return }}</span></td>
-                        <td class="dash-money">₱{{ b.total|number_format(2) }}</td>
-                        <td><span class="dash-badge {{ b.pay_badge }}">{{ b.payment_status }}</span></td>
-                        <td><span class="dash-badge {{ b.badge }}">{{ b.status }}</span></td>
+                        <td>{{ b.vehicle.name }}</td>
+                        <td>
+                            {{ b.pickupDate|date('Y-m-d') }}
+                            <span class="cell-sub">to {{ b.returnDate|date('Y-m-d') }}</span>
+                        </td>
+                        <td class="dash-money">
+                            ₱{{ b.totalFee|number_format(2) }}
+                            {% if b.lateFee > 0 %}<span class="cell-sub">+ ₱{{ b.lateFee|number_format(2) }} late fee</span>{% endif %}
+                        </td>
+                        <td><span class="dash-badge {{ badges[b.status] ?? 'dash-badge-pending' }}">{{ b.status }}</span></td>
+                        <td>
+                            {% if b.createdBy %}
+                                {{ b.createdBy.name }}
+                                {% if b.createdBy.id == app.user.id %}<span class="cell-sub">(you)</span>{% endif %}
+                            {% else %}
+                                <span class="cell-sub">System</span>
+                            {% endif %}
+                        </td>
                         <td>
                             <div class="action-group">
-                                {% if b.status == 'Pending' %}
-                                    <form method="post" action="{{ path('app_bookings_action', {id: b.id, action: 'approve'}) }}">
-                                        <button type="submit" class="dash-btn dash-btn-green dash-btn-sm">Approve</button>
+                                {% if is_granted('BOOKING_EDIT', b) %}
+                                    <a href="{{ path('app_bookings_edit', {id: b.id}) }}" class="dash-btn dash-btn-outline dash-btn-sm">Edit</a>
+                                {% endif %}
+
+                                {% if is_granted('BOOKING_DELETE', b) %}
+                                    <form method="post" action="{{ path('app_bookings_delete', {id: b.id}) }}"
+                                          onsubmit="return confirm('Delete booking #{{ b.id }} for {{ b.customerName|e('js') }}? This cannot be undone.');">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('delete_booking_' ~ b.id) }}">
+                                        <button type="submit" class="dash-btn dash-btn-danger dash-btn-sm">Delete</button>
                                     </form>
-                                    <form method="post" action="{{ path('app_bookings_action', {id: b.id, action: 'reject'}) }}">
-                                        <button type="submit" class="dash-btn dash-btn-danger dash-btn-sm">Reject</button>
-                                    </form>
-                                {% elseif b.status == 'Approved' %}
-                                    <form method="post" action="{{ path('app_bookings_action', {id: b.id, action: 'pickup'}) }}">
-                                        <button type="submit" class="dash-btn dash-btn-outline dash-btn-sm">Picked Up</button>
-                                    </form>
-                                    <form method="post" action="{{ path('app_bookings_action', {id: b.id, action: 'cancel'}) }}">
-                                        <button type="submit" class="dash-btn dash-btn-danger dash-btn-sm">Cancel</button>
-                                    </form>
-                                {% elseif b.status == 'Picked Up' %}
-                                    <form method="post" action="{{ path('app_bookings_action', {id: b.id, action: 'return'}) }}">
-                                        <input type="number" name="days_late" min="0" placeholder="Days late" class="late-input">
-                                        <button type="submit" class="dash-btn dash-btn-yellow dash-btn-sm">Return</button>
-                                    </form>
-                                {% elseif b.status == 'Cancel Requested' %}
-                                    <form method="post" action="{{ path('app_bookings_action', {id: b.id, action: 'approve-cancel'}) }}">
-                                        <button type="submit" class="dash-btn dash-btn-green dash-btn-sm">Approve</button>
-                                    </form>
-                                    <form method="post" action="{{ path('app_bookings_action', {id: b.id, action: 'decline-cancel'}) }}">
-                                        <button type="submit" class="dash-btn dash-btn-danger dash-btn-sm">Decline</button>
-                                    </form>
-                                {% else %}
-                                    <span class="cell-sub">No actions</span>
+                                {% endif %}
+
+                                {% if is_granted('ROLE_ADMIN') %}
+                                    {% if b.status == 'Pending' %}
+                                        <form method="post" action="{{ path('app_bookings_status', {id: b.id, action: 'approve'}) }}">
+                                            <input type="hidden" name="_token" value="{{ csrf_token('status_booking_' ~ b.id) }}">
+                                            <button type="submit" class="dash-btn dash-btn-green dash-btn-sm">Approve</button>
+                                        </form>
+                                        <form method="post" action="{{ path('app_bookings_status', {id: b.id, action: 'reject'}) }}">
+                                            <input type="hidden" name="_token" value="{{ csrf_token('status_booking_' ~ b.id) }}">
+                                            <button type="submit" class="dash-btn dash-btn-danger dash-btn-sm">Reject</button>
+                                        </form>
+                                    {% elseif b.status == 'Approved' %}
+                                        <form method="post" action="{{ path('app_bookings_status', {id: b.id, action: 'pickup'}) }}">
+                                            <input type="hidden" name="_token" value="{{ csrf_token('status_booking_' ~ b.id) }}">
+                                            <button type="submit" class="dash-btn dash-btn-outline dash-btn-sm">Picked Up</button>
+                                        </form>
+                                    {% elseif b.status == 'Picked Up' %}
+                                        <form method="post" action="{{ path('app_bookings_status', {id: b.id, action: 'return'}) }}">
+                                            <input type="hidden" name="_token" value="{{ csrf_token('status_booking_' ~ b.id) }}">
+                                            <input type="number" name="days_late" min="0" placeholder="Days late" class="late-input">
+                                            <button type="submit" class="dash-btn dash-btn-yellow dash-btn-sm">Return</button>
+                                        </form>
+                                    {% endif %}
+                                {% elseif not is_granted('BOOKING_EDIT', b) %}
+                                    <span class="cell-sub">View only</span>
                                 {% endif %}
                             </div>
                         </td>
                     </tr>
                 {% else %}
-                    <tr class="empty-row"><td colspan="8">No bookings found for this filter.</td></tr>
+                    <tr class="empty-row"><td colspan="8">No bookings found.</td></tr>
                 {% endfor %}
             </tbody>
         </table>

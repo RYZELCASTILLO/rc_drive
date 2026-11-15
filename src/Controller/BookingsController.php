@@ -2,121 +2,161 @@
 
 namespace App\Controller;
 
+use App\Entity\Booking;
+use App\Entity\User;
+use App\Form\BookingType;
+use App\Repository\BookingRepository;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
+#[Route('/bookings')]
+#[IsGranted('ROLE_STAFF')]
 final class BookingsController extends AbstractController
 {
-    private const LATE_FEE_PER_DAY = 1000; // same late fee as your old project
+    private const LATE_FEE_PER_DAY = 1000;
 
-    #[Route('/bookings', name: 'app_bookings', methods: ['GET'])]
-    public function index(Request $request): Response
+    #[Route('', name: 'app_bookings', methods: ['GET'])]
+    public function index(Request $request, BookingRepository $repository): Response
     {
-        $allBookings = $this->sampleBookings();
-        $statuses = ['Pending', 'Approved', 'Picked Up', 'Cancel Requested', 'Returned', 'Rejected', 'Cancelled'];
-
-        $filter = $request->query->getString('status', 'All');
-        if (!in_array($filter, $statuses, true)) {
-            $filter = 'All';
-        }
-
-        $counts = array_fill_keys($statuses, 0);
-        foreach ($allBookings as $booking) {
-            $counts[$booking['status']]++;
-        }
-
-        $bookings = array_values(array_filter(
-            $allBookings,
-            fn (array $b) => $filter === 'All' || $b['status'] === $filter
-        ));
-
-        foreach ($bookings as $key => $booking) {
-            $bookings[$key]['badge']     = $this->statusBadgeClass($booking['status']);
-            $bookings[$key]['pay_badge'] = $this->paymentBadgeClass($booking['payment_status']);
+        $term   = trim($request->query->getString('q'));
+        $status = $request->query->getString('status');
+        if (!in_array($status, Booking::STATUSES, true)) {
+            $status = '';
         }
 
         return $this->render('bookings/index.html.twig', [
-            'bookings' => $bookings,
-            'counts'   => $counts,
-            'filter'   => $filter,
-            'total'    => count($allBookings),
+            'bookings' => $repository->search($term, $status),
+            'statuses' => Booking::STATUSES,
+            'term'     => $term,
+            'status'   => $status,
         ]);
     }
 
-    #[Route(
-        '/bookings/{id}/{action}',
-        name: 'app_bookings_action',
-        requirements: ['id' => '\d+', 'action' => 'approve|reject|pickup|return|cancel|approve-cancel|decline-cancel'],
-        methods: ['POST']
-    )]
-    public function action(int $id, string $action, Request $request): RedirectResponse
+    #[Route('/new', name: 'app_bookings_new', methods: ['GET', 'POST'])]
+    public function new(Request $request, EntityManagerInterface $em): Response
     {
-        // Later: update the booking in the database here.
-        [$type, $text] = match ($action) {
-            'approve'        => ['success', "Booking #$id approved."],
-            'reject'         => ['error',   "Booking #$id rejected."],
-            'pickup'         => ['success', "Booking #$id marked as picked up."],
-            'return'         => ['success', $this->returnMessage($id, $request)],
-            'cancel'         => ['error',   "Booking #$id cancelled."],
-            'approve-cancel' => ['success', "Cancellation for booking #$id approved. The car is available again."],
-            'decline-cancel' => ['info',    "Cancellation request for booking #$id declined. The booking stays approved."],
-            default          => ['info',    'Nothing changed.'],
-        };
+        /** @var User $user */
+        $user = $this->getUser();
 
-        $this->addFlash($type, $text);
+        $booking = new Booking();
+        $booking->setCreatedBy($user);
+
+        $form = $this->createForm(BookingType::class, $booking, [
+            'is_admin' => $this->isGranted('ROLE_ADMIN'),
+            'is_edit'  => false,
+        ]);
+        $form->handleRequest($request);
+
+        if ($form->isSubmitted() && $form->isValid()) {
+            $booking->recalculateTotal();
+            $em->persist($booking);
+            $em->flush();
+
+            $this->addFlash('success', sprintf(
+                'Booking created for %s. Total: ₱%s (%d day(s)).',
+                $booking->getCustomerName(),
+                number_format((float) $booking->getTotalFee(), 2),
+                $booking->getRentalDays()
+            ));
+
+            return $this->redirectToRoute('app_bookings');
+        }
+
+        return $this->render('bookings/form.html.twig', [
+            'form'  => $form,
+            'title' => 'New Booking',
+        ]);
+    }
+
+    #[Route('/{id}/edit', name: 'app_bookings_edit', requirements: ['id' => '\d+'], methods: ['GET', 'POST'])]
+    #[IsGranted('BOOKING_EDIT', subject: 'booking')]
+    public function edit(Booking $booking, Request $request, EntityManagerInterface $em): Response
+    {
+        $form = $this->createForm(BookingType::class, $booking, [
+            'is_admin' => $this->isGranted('ROLE_ADMIN'),
+            'is_edit'  => true,
+        ]);
+        $form->handleRequest($request);
+
+        if ($form->isSubmitted() && $form->isValid()) {
+            $booking->recalculateTotal();
+            $em->flush();
+
+            $this->addFlash('success', sprintf('Booking #%d updated. Total: ₱%s.', $booking->getId(), number_format((float) $booking->getTotalFee(), 2)));
+
+            return $this->redirectToRoute('app_bookings');
+        }
+
+        return $this->render('bookings/form.html.twig', [
+            'form'  => $form,
+            'title' => 'Edit Booking #' . $booking->getId(),
+        ]);
+    }
+
+    #[Route('/{id}/delete', name: 'app_bookings_delete', requirements: ['id' => '\d+'], methods: ['POST'])]
+    #[IsGranted('BOOKING_DELETE', subject: 'booking')]
+    public function delete(Booking $booking, Request $request, EntityManagerInterface $em): RedirectResponse
+    {
+        if (!$this->isCsrfTokenValid('delete_booking_' . $booking->getId(), $request->request->getString('_token'))) {
+            $this->addFlash('error', 'Invalid security token. Please try again.');
+
+            return $this->redirectToRoute('app_bookings');
+        }
+
+        $id = $booking->getId();
+        $em->remove($booking);
+        $em->flush();
+
+        $this->addFlash('success', "Booking #$id was deleted.");
 
         return $this->redirectToRoute('app_bookings');
     }
 
-    private function returnMessage(int $id, Request $request): string
+    #[Route(
+        '/{id}/status/{action}',
+        name: 'app_bookings_status',
+        requirements: ['id' => '\d+', 'action' => 'approve|reject|pickup|return'],
+        methods: ['POST']
+    )]
+    #[IsGranted('ROLE_ADMIN')]
+    public function status(Booking $booking, string $action, Request $request, EntityManagerInterface $em): RedirectResponse
     {
-        $daysLate = max(0, $request->request->getInt('days_late'));
-        $fee      = $daysLate * self::LATE_FEE_PER_DAY;
+        if (!$this->isCsrfTokenValid('status_booking_' . $booking->getId(), $request->request->getString('_token'))) {
+            $this->addFlash('error', 'Invalid security token. Please try again.');
 
-        $text = "Booking #$id marked as returned.";
-        if ($fee > 0) {
-            $text .= ' Late fee: ₱' . number_format($fee) . " ($daysLate day(s) x ₱" . number_format(self::LATE_FEE_PER_DAY) . ').';
+            return $this->redirectToRoute('app_bookings');
         }
 
-        return $text;
-    }
+        $id = $booking->getId();
 
-    private function sampleBookings(): array
-    {
-        return [
-            ['id' => 1, 'customer' => 'Maria Santos',    'phone' => '0917 123 4567', 'vehicle' => 'Executive Sedan', 'pickup' => '2026-10-09', 'return' => '2026-10-12', 'total' => 7500,  'status' => 'Approved',         'payment_status' => 'Paid',                 'note' => ''],
-            ['id' => 2, 'customer' => 'Juan Dela Cruz',  'phone' => '0918 234 5678', 'vehicle' => 'Family SUV',      'pickup' => '2026-10-10', 'return' => '2026-10-14', 'total' => 15200, 'status' => 'Pending',          'payment_status' => 'Unpaid',               'note' => ''],
-            ['id' => 3, 'customer' => 'Ana Reyes',       'phone' => '0919 345 6789', 'vehicle' => 'Luxury Sports',   'pickup' => '2026-10-08', 'return' => '2026-10-10', 'total' => 13000, 'status' => 'Picked Up',        'payment_status' => 'Partial',              'note' => ''],
-            ['id' => 4, 'customer' => 'Carlo Mendoza',   'phone' => '0920 456 7890', 'vehicle' => 'Executive Sedan', 'pickup' => '2026-10-07', 'return' => '2026-10-09', 'total' => 5000,  'status' => 'Cancel Requested', 'payment_status' => 'Unpaid',               'note' => 'Reason: Change of travel date'],
-            ['id' => 5, 'customer' => 'Liza Fernandez',  'phone' => '0921 567 8901', 'vehicle' => 'Family SUV',      'pickup' => '2026-10-12', 'return' => '2026-10-15', 'total' => 11400, 'status' => 'Approved',         'payment_status' => 'Pending Verification', 'note' => ''],
-            ['id' => 6, 'customer' => 'Mark Villanueva', 'phone' => '0922 678 9012', 'vehicle' => 'Executive Sedan', 'pickup' => '2026-10-01', 'return' => '2026-10-04', 'total' => 7500,  'status' => 'Returned',         'payment_status' => 'Paid',                 'note' => ''],
-            ['id' => 7, 'customer' => 'Rhea Gonzales',   'phone' => '0923 789 0123', 'vehicle' => 'Family SUV',      'pickup' => '2026-10-02', 'return' => '2026-10-05', 'total' => 11400, 'status' => 'Rejected',         'payment_status' => 'Unpaid',               'note' => ''],
-        ];
-    }
+        if ($action === 'return') {
+            $daysLate = max(0, $request->request->getInt('days_late'));
+            $lateFee  = $daysLate * self::LATE_FEE_PER_DAY;
 
-    private function statusBadgeClass(string $status): string
-    {
-        return match ($status) {
-            'Approved'         => 'dash-badge-approved',
-            'Picked Up'        => 'dash-badge-pickedup',
-            'Returned'         => 'dash-badge-returned',
-            'Cancel Requested' => 'dash-badge-cancelreq',
-            'Cancelled'        => 'dash-badge-cancelled',
-            'Rejected'         => 'dash-badge-rejected',
-            default            => 'dash-badge-pending',
-        };
-    }
+            $booking->setStatus('Returned');
+            $booking->setLateFee(number_format($lateFee, 2, '.', ''));
 
-    private function paymentBadgeClass(string $status): string
-    {
-        return match ($status) {
-            'Paid'                 => 'dash-badge-paid',
-            'Partial'              => 'dash-badge-partial',
-            'Pending Verification' => 'dash-badge-verify',
-            default                => 'dash-badge-unpaid',
-        };
+            $message = "Booking #$id marked as returned.";
+            if ($lateFee > 0) {
+                $message .= ' Late fee: ₱' . number_format($lateFee) . " ($daysLate day(s) x ₱" . number_format(self::LATE_FEE_PER_DAY) . ').';
+            }
+        } else {
+            [$newStatus, $message] = match ($action) {
+                'approve' => ['Approved', "Booking #$id approved."],
+                'reject'  => ['Rejected', "Booking #$id rejected."],
+                'pickup'  => ['Picked Up', "Booking #$id marked as picked up."],
+            };
+            $booking->setStatus($newStatus);
+        }
+
+        $em->flush();
+        $this->addFlash('success', $message);
+
+        return $this->redirectToRoute('app_bookings');
     }
 }
