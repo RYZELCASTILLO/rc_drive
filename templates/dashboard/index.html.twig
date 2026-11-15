@@ -11,6 +11,24 @@
 
 <div class="dash-stats">
     <div class="dash-stat-card">
+        <span class="stat-label">Total Users</span>
+        <div class="stat-value">{{ total_users }}</div>
+        <span class="stat-sub">Admins + staff accounts</span>
+    </div>
+    <div class="dash-stat-card blue">
+        <span class="stat-label">Total Staff</span>
+        <div class="stat-value">{{ total_staff }}</div>
+        <span class="stat-sub">Staff accounts</span>
+    </div>
+    <div class="dash-stat-card green">
+        <span class="stat-label">Total Records</span>
+        <div class="stat-value">{{ total_records }}</div>
+        <span class="stat-sub">Bookings in the system</span>
+    </div>
+</div>
+
+<div class="dash-stats">
+    <div class="dash-stat-card">
         <span class="stat-label">Available Cars</span>
         <div class="stat-value">{{ available_cars }}</div>
         <span class="stat-sub">Out of {{ total_fleet }} fleet</span>

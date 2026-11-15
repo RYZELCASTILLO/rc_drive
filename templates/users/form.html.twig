@@ -1,0 +1,54 @@
+{% extends 'base.html.twig' %}
+
+{% form_theme form 'form_div_layout.html.twig' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block body %}
+
+<div class="dash-page-title">
+    <h2>{{ title }}</h2>
+    <p>Fill in the details below. Fields with errors are shown in red.</p>
+</div>
+
+<div class="dash-section form-card">
+    {{ form_start(form) }}
+
+        <div class="form-group">
+            {{ form_label(form.name) }}
+            {{ form_widget(form.name) }}
+            {{ form_errors(form.name) }}
+        </div>
+
+        <div class="form-group">
+            {{ form_label(form.email) }}
+            {{ form_widget(form.email) }}
+            {{ form_errors(form.email) }}
+        </div>
+
+        <div class="form-group">
+            {{ form_label(form.role) }}
+            {{ form_widget(form.role) }}
+            {{ form_errors(form.role) }}
+        </div>
+
+        <div class="form-group">
+            {{ form_label(form.plainPassword.first) }}
+            {{ form_widget(form.plainPassword.first) }}
+            {{ form_errors(form.plainPassword) }}
+        </div>
+
+        <div class="form-group">
+            {{ form_label(form.plainPassword.second) }}
+            {{ form_widget(form.plainPassword.second) }}
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="dash-btn dash-btn-yellow"><i class="fa-solid fa-floppy-disk"></i> Save</button>
+            <a href="{{ path('app_users') }}" class="dash-btn dash-btn-outline">Cancel</a>
+        </div>
+
+    {{ form_end(form) }}
+</div>
+
+{% endblock %}

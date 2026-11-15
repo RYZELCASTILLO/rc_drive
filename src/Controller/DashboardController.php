@@ -9,13 +9,15 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use App\Entity\User;
+use App\Repository\UserRepository;
 
 #[Route('/admin')]
 #[IsGranted('ROLE_ADMIN')]
 final class DashboardController extends AbstractController
 {
         #[Route('', name: 'app_dashboard')]
-    public function index(EntityManagerInterface $em): Response
+    public function index(EntityManagerInterface $em, UserRepository $userRepository): Response
     {
         // ---------- DATA FROM THE DATABASE ----------
         $vehicles = [];
@@ -98,6 +100,9 @@ final class DashboardController extends AbstractController
 
         return $this->render('dashboard/index.html.twig', [
             'admin_name'        => 'Admin',
+            'total_users'       => $userRepository->count([]),
+            'total_staff'       => $userRepository->countByRole(User::ROLE_STAFF),
+            'total_records'     => count($bookings),
             'total_fleet'       => $totalFleet,
             'available_cars'    => $availableCars,
             'total_rented'      => $totalRented,

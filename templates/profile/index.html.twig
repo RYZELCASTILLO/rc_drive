@@ -1,0 +1,33 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}My Profile{% endblock %}
+
+{% block body %}
+
+<div class="dash-page-title">
+    <h2>My <span>Profile</span></h2>
+    <p>Your account details.</p>
+</div>
+
+<div class="dash-section form-card">
+    <div class="profile-row"><span>Name</span><span>{{ user.name }}</span></div>
+    <div class="profile-row"><span>Email</span><span>{{ user.email }}</span></div>
+    <div class="profile-row">
+        <span>Role</span>
+        <span>
+            <span class="dash-badge {{ user.role == 'ROLE_ADMIN' ? 'dash-badge-admin' : 'dash-badge-staff' }}">
+                {{ user.role == 'ROLE_ADMIN' ? 'Admin' : 'Staff' }}
+            </span>
+        </span>
+    </div>
+    <div class="profile-row"><span>Status</span><span>{{ user.status }}</span></div>
+    <div class="profile-row"><span>Member since</span><span>{{ user.createdAt|date('M d, Y') }}</span></div>
+
+    <div class="form-actions">
+        <a href="{{ path('app_profile_password') }}" class="dash-btn dash-btn-yellow">
+            <i class="fa-solid fa-key"></i> Change Password
+        </a>
+    </div>
+</div>
+
+{% endblock %}

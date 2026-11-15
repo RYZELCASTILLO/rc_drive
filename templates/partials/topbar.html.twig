@@ -5,7 +5,7 @@
         <span class="dash-role-badge {{ is_granted('ROLE_ADMIN') ? '' : 'staff' }}">
             {{ is_granted('ROLE_ADMIN') ? 'ADMINISTRATOR' : 'STAFF' }}
         </span>
-        <span class="topbar-user">{{ app.user.name }}</span>
+        <a href="{{ path('app_profile') }}" class="topbar-user">{{ app.user.name }}</a>
         <a href="{{ path('app_logout') }}" class="dash-btn dash-btn-danger">
             <i class="fa-solid fa-right-from-bracket"></i> Logout
         </a>

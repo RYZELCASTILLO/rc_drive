@@ -11,6 +11,9 @@
             <a href="{{ path('app_dashboard') }}" class="{{ current_route == 'app_dashboard' ? 'active' : '' }}">
                 <i class="fa-solid fa-gauge-high"></i> <span class="link-text">Dashboard</span>
             </a>
+            <a href="{{ path('app_users') }}" class="{{ current_route starts with 'app_users' ? 'active' : '' }}">
+                <i class="fa-solid fa-users"></i> <span class="link-text">Users</span>
+            </a>
         {% endif %}
 
         <span class="sidebar-label">Manage</span>
@@ -29,9 +32,14 @@
                 <i class="fa-solid fa-comments"></i> <span class="link-text">Conversations</span>
             </a>
         {% endif %}
+
+        <span class="sidebar-label">Account</span>
+        <a href="{{ path('app_profile') }}" class="{{ current_route starts with 'app_profile' ? 'active' : '' }}">
+            <i class="fa-solid fa-user"></i> <span class="link-text">My Profile</span>
+        </a>
     </nav>
 
     <div class="sidebar-bottom">
-        <i class="fa-solid fa-user"></i> <span class="link-text">{{ app.user.name }}</span>
+        <i class="fa-solid fa-circle-user"></i> <span class="link-text">{{ app.user.name }}</span>
     </div>
 </aside>

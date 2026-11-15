@@ -9,11 +9,12 @@ use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Validator\Constraints as Assert;
+use Symfony\Component\Security\Core\User\EquatableInterface;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 #[ORM\Table(name: 'users')]
 #[UniqueEntity(fields: ['email'], message: 'This email is already used by another account.')]
-class User implements UserInterface, PasswordAuthenticatedUserInterface
+class User implements UserInterface, PasswordAuthenticatedUserInterface, EquatableInterface
 {
     public const ROLE_ADMIN = 'ROLE_ADMIN';
     public const ROLE_STAFF = 'ROLE_STAFF';
@@ -74,6 +75,20 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     /** @return string[] */
     public function getRoles(): array { return [$this->role]; }
 
+        /**
+     * Logs a person out automatically when an admin disables the account or changes the role.
+     */
+    public function isEqualTo(UserInterface $user): bool
+    {
+        if (!$user instanceof self) {
+            return false;
+        }
+
+        return $this->id === $user->getId()
+            && $this->email === $user->getEmail()
+            && $this->role === $user->getRole()
+            && $this->status === $user->getStatus();
+    }
     /**
      * Keeps the password hash out of the session (CRC32C-hashed).
      */

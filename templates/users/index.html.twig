@@ -1,0 +1,79 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Users{% endblock %}
+
+{% block body %}
+
+<div class="dash-page-title">
+    <h2>User <span>Accounts</span></h2>
+    <p>Create, edit, disable or delete admin and staff accounts.</p>
+</div>
+
+<div class="dash-section">
+    <div class="dash-section-title">
+        <h3><i class="fa-solid fa-users"></i> All Accounts</h3>
+        <a href="{{ path('app_users_new') }}" class="dash-btn dash-btn-yellow">
+            <i class="fa-solid fa-user-plus"></i> New Account
+        </a>
+    </div>
+
+    <div class="dash-table-wrap">
+        <table class="dash-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in users %}
+                    <tr>
+                        <td>
+                            <span class="dash-vehicle-name">{{ u.name }}</span>
+                            {% if u.id == app.user.id %}<span class="cell-sub">(you)</span>{% endif %}
+                        </td>
+                        <td>{{ u.email }}</td>
+                        <td>
+                            <span class="dash-badge {{ u.role == 'ROLE_ADMIN' ? 'dash-badge-admin' : 'dash-badge-staff' }}">
+                                {{ u.role == 'ROLE_ADMIN' ? 'Admin' : 'Staff' }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="dash-badge {{ u.status == 'Active' ? 'dash-badge-approved' : 'dash-badge-cancelled' }}">{{ u.status }}</span>
+                        </td>
+                        <td>{{ u.createdAt|date('M d, Y') }}</td>
+                        <td>
+                            <div class="action-group">
+                                <a href="{{ path('app_users_edit', {id: u.id}) }}" class="dash-btn dash-btn-outline dash-btn-sm">Edit</a>
+
+                                {% if u.id != app.user.id %}
+                                    <form method="post" action="{{ path('app_users_toggle', {id: u.id}) }}"
+                                          onsubmit="return confirm('{{ u.status == 'Active' ? 'Disable' : 'Enable' }} this account?');">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('toggle_user_' ~ u.id) }}">
+                                        <button type="submit" class="dash-btn dash-btn-sm {{ u.status == 'Active' ? 'dash-btn-outline' : 'dash-btn-green' }}">
+                                            {{ u.status == 'Active' ? 'Disable' : 'Enable' }}
+                                        </button>
+                                    </form>
+
+                                    <form method="post" action="{{ path('app_users_delete', {id: u.id}) }}"
+                                          onsubmit="return confirm('Delete the account of {{ u.name|e('js') }}? This cannot be undone.');">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('delete_user_' ~ u.id) }}">
+                                        <button type="submit" class="dash-btn dash-btn-danger dash-btn-sm">Delete</button>
+                                    </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr class="empty-row"><td colspan="6">No accounts found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}
